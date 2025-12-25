@@ -18,11 +18,9 @@ class PDFCryptoApp:
         self.public_key = None
         self.aes_key = None
 
-        # UI Elements
         self.create_widgets()
 
     def create_widgets(self):
-        # Key Generation Section
         key_frame = tk.LabelFrame(self.root, text="1. Gestion des clés ECDSA", padx=10, pady=10)
         key_frame.pack(fill="x", padx=10, pady=5)
 
@@ -32,19 +30,16 @@ class PDFCryptoApp:
         self.lbl_keys = tk.Label(key_frame, text="Aucune clé chargée", fg="red")
         self.lbl_keys.pack(side=tk.LEFT, padx=10)
 
-        # Encryption Section
         enc_frame = tk.LabelFrame(self.root, text="2. Chiffrement et Signature", padx=10, pady=10)
         enc_frame.pack(fill="x", padx=10, pady=5)
 
         tk.Button(enc_frame, text="Choisir PDF et Chiffrer/Signer", command=self.encrypt_and_sign).pack(fill="x", padx=5)
 
-        # Decryption Section
         dec_frame = tk.LabelFrame(self.root, text="3. Vérification et Déchiffrement", padx=10, pady=10)
         dec_frame.pack(fill="x", padx=10, pady=5)
 
         tk.Button(dec_frame, text="Choisir Fichier Chiffré et Vérifier/Déchiffrer", command=self.verify_and_decrypt).pack(fill="x", padx=5)
 
-        # Log Area
         self.log_text = tk.Text(self.root, height=10)
         self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -56,7 +51,6 @@ class PDFCryptoApp:
         self.private_key = SigningKey.generate(curve=NIST256p)
         self.public_key = self.private_key.verifying_key
         
-        # Save keys
         with open("private.pem", "wb") as f:
             f.write(self.private_key.to_pem())
         with open("public.pem", "wb") as f:
@@ -95,37 +89,29 @@ class PDFCryptoApp:
             return
 
         try:
-            # 1. Read PDF
             with open(file_path, "rb") as f:
                 plaintext = f.read()
 
-            # 2. Encrypt with AES
-            aes_key = get_random_bytes(32) # AES-256
+            aes_key = get_random_bytes(32) 
             iv = get_random_bytes(16)
             cipher = AES.new(aes_key, AES.MODE_CBC, iv)
             ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
             
             encrypted_content = iv + ciphertext
 
-            # Save AES key (in a real scenario, this should be encrypted with a public key or derived from a password)
-            # For this mini-project, we save it to a file alongside
             key_file = file_path + ".aeskey"
             with open(key_file, "wb") as f:
                 f.write(aes_key)
             self.log(f"Clé AES sauvegardée dans : {os.path.basename(key_file)}")
 
-            # 3. Calculate Hash of Encrypted Content (IV + Ciphertext)
             file_hash = hashlib.sha256(encrypted_content).digest()
 
-            # 4. Sign Hash
             signature = self.private_key.sign(file_hash)
 
-            # Save Encrypted File (Format: IV + Ciphertext)
             enc_file_path = file_path + ".enc"
             with open(enc_file_path, "wb") as f:
                 f.write(encrypted_content)
             
-            # Save Signature
             sig_file_path = file_path + ".sig"
             with open(sig_file_path, "wb") as f:
                 f.write(signature)
@@ -147,7 +133,6 @@ class PDFCryptoApp:
         if not enc_file_path:
             return
 
-        # Try to find signature and key files automatically
         base_path = enc_file_path.replace(".enc", "")
         sig_file_path = base_path + ".sig"
         
@@ -162,18 +147,15 @@ class PDFCryptoApp:
             if not key_file_path: return
 
         try:
-            # Read Encrypted File
             with open(enc_file_path, "rb") as f:
                 encrypted_content = f.read()
             
             iv = encrypted_content[:16]
             ciphertext = encrypted_content[16:]
 
-            # Read Signature
             with open(sig_file_path, "rb") as f:
                 signature = f.read()
 
-            # 1. Verify Signature (on full encrypted content)
             file_hash = hashlib.sha256(encrypted_content).digest()
             try:
                 if self.public_key.verify(signature, file_hash):
@@ -187,14 +169,12 @@ class PDFCryptoApp:
                 messagebox.showerror("Erreur", "Signature invalide !")
                 return
 
-            # 2. Decrypt
             with open(key_file_path, "rb") as f:
                 aes_key = f.read()
 
             cipher = AES.new(aes_key, AES.MODE_CBC, iv)
             plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size)
 
-            # Save Decrypted PDF
             dec_file_path = base_path + "_decrypted.pdf"
             with open(dec_file_path, "wb") as f:
                 f.write(plaintext)
